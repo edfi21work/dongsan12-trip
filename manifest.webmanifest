@@ -1,0 +1,16 @@
+{
+  "name": "동산초 12회 중국여행 답사기",
+  "short_name": "답사기",
+  "description": "동산초 12회 망산 여행 일정, 준비물, 설렘과 느낌을 함께 나누는 앱",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#2F4D3C",
+  "theme_color": "#2F4D3C",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
