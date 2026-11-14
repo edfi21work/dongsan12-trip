@@ -51,6 +51,42 @@ body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:55vh;backgr
 nav.days[hidden]{display:none}
 .scene-banner{height:150px;border-radius:12px;margin:14px 0 0;background:var(--sky);position:relative;overflow:hidden}
 .scene-banner::after{content:"";position:absolute;inset:0;background:var(--art,none) center bottom/cover no-repeat}
+
+:root[data-scene="board"]{--bg:#B98A5C;--ink:#2B1E14;--muted:#4A3726;--surface:#FFFBF0;--panel:transparent;--line:#D9C6A5;--pine:#2E5A45;--seal:#B3352B;--on-accent:#FFFFFF;--on-pine:#FFFFFF;--note:#FFF4D6;--pine-soft:#EADFC8;--paper:#FFFBF0;--paper-ink:#2B1E14;--paper-muted:#6B5440;
+  --sky:radial-gradient(circle at 20% 30%,rgba(90,55,25,.25) 0 1.5px,transparent 2px) 0 0/23px 19px,radial-gradient(circle at 70% 60%,rgba(255,235,200,.25) 0 1.5px,transparent 2px) 0 0/31px 27px,radial-gradient(circle at 40% 80%,rgba(70,40,15,.2) 0 1px,transparent 1.5px) 0 0/17px 13px,#B98A5C;--art:none;color-scheme:light}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"])[data-scene="board"]{--bg:#4A3524;--ink:#F3E9DA;--muted:#D8C6AF;--surface:#2E241B;--line:#5C4733;--pine:#86C4A3;--seal:#E26F63;--on-accent:#1E1610;--on-pine:#1E1610;--note:#3A2E22;--pine-soft:#3A2E22;--paper:#F6EEDC;--paper-ink:#2B1E14;--paper-muted:#6B5440;--sky:radial-gradient(circle at 20% 30%,rgba(0,0,0,.25) 0 1.5px,transparent 2px) 0 0/23px 19px,radial-gradient(circle at 70% 60%,rgba(255,235,200,.08) 0 1.5px,transparent 2px) 0 0/31px 27px,#4A3524;color-scheme:dark}}
+:root[data-theme="dark"][data-scene="board"]{--bg:#4A3524;--ink:#F3E9DA;--muted:#D8C6AF;--surface:#2E241B;--line:#5C4733;--pine:#86C4A3;--seal:#E26F63;--on-accent:#1E1610;--on-pine:#1E1610;--note:#3A2E22;--pine-soft:#3A2E22;--paper:#F6EEDC;--paper-ink:#2B1E14;--paper-muted:#6B5440;--sky:radial-gradient(circle at 20% 30%,rgba(0,0,0,.25) 0 1.5px,transparent 2px) 0 0/23px 19px,#4A3524;color-scheme:dark}
+:root[data-scene="board"] #view{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0}
+:root[data-scene="board"] body::after{display:none}
+.friends h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight:400;font-size:28px;margin:0 0 8px;line-height:1.2}
+.paper{position:relative;background:var(--paper);color:var(--paper-ink);border-radius:4px;padding:16px;margin-top:16px;box-shadow:0 2px 0 rgba(0,0,0,.06),0 6px 14px rgba(40,20,0,.25);transform:rotate(var(--r,0deg))}
+.paper::before,.fcard::before{content:"";position:absolute;top:-7px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff9a8a,#B3352B 60%,#7a1f17);box-shadow:0 2px 3px rgba(0,0,0,.35)}
+.paper label,.paper .status{color:var(--paper-muted)}
+.paper textarea{background:#fff;color:var(--paper-ink);border-color:#D9C6A5}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:16px;min-height:42px;padding:6px 14px;border-radius:999px;border:1.5px solid #B3352B;background:#fff;color:#2B1E14;cursor:pointer}
+.chip[aria-pressed="true"]{background:#B3352B;color:#fff}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px;margin-top:22px}
+.fcard{position:relative;text-align:left;font:inherit;color:var(--paper-ink);background:var(--paper);border:none;border-radius:4px;padding:16px 12px 12px;cursor:pointer;box-shadow:0 6px 12px rgba(40,20,0,.25);transform:rotate(var(--r,0deg));min-height:96px}
+.fcard:nth-child(3n+2){background:#FFF3B8}.fcard:nth-child(3n){background:#DDEFE3}
+.fcard.open{grid-column:1/-1;transform:none}
+.fcard.me{outline:3px solid #B3352B;outline-offset:2px}
+.ftop{display:flex;gap:10px;align-items:center}
+.ftop small{display:block;font-size:13px;color:var(--paper-muted)}
+.avatar{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#2E5A45;color:#fff;font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-size:19px;white-space:nowrap;letter-spacing:-1px;overflow:hidden}
+.snip{margin:8px 0 0;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+.full{margin:8px 0 0;font-size:16px;overflow-wrap:anywhere;white-space:pre-wrap}
+.full b{color:#B3352B;font-weight:700}
+.boardtitle{margin-top:28px!important;color:var(--ink)}
+.post .ptop{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.post .dl{font-size:14px;color:#B3352B}
+.post p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.post .del{border:none;background:none;color:var(--paper-muted);font:inherit;font-size:14px;cursor:pointer;padding:6px 0 0}
+.votetable th{text-align:left;font-size:14px;color:var(--muted);font-weight:400;padding:6px 4px;border-bottom:1px solid var(--line)}
+.votetable td.cnt{font-weight:700;color:var(--pine);white-space:nowrap}
+.votetable td.names{font-size:14px;color:var(--muted);text-align:left!important;white-space:normal!important}
+.votetable td:nth-child(2){white-space:nowrap}
+.namechips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .chalkset{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .chalkset svg{flex:none}
 .doodle-row{display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:10px;margin:22px 0 4px;opacity:.85}
@@ -74,10 +110,10 @@ h1{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight:400;font-siz
 .sub{color:var(--muted);font-size:15px;margin:0}
 
 .sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);margin:0 -16px;padding:10px 16px 0;border-bottom:1px solid var(--line)}
-.stage{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
-.stage a{display:block;text-align:center;text-decoration:none;color:var(--ink);padding:10px 8px;border-radius:9px;font-size:17px;min-height:46px}
+.stage{display:grid;grid-template-columns:1fr 1.15fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.stage a{display:block;text-align:center;text-decoration:none;color:var(--ink);padding:9px 4px;border-radius:9px;font-size:16px;line-height:1.25;min-height:46px;word-break:keep-all}
 .stage a[aria-current="page"]{background:var(--pine);color:var(--on-pine)}
-.stage a small{display:block;font-size:13px;opacity:.8;line-height:1.2}
+.stage a small{display:block;font-size:12px;opacity:.8;line-height:1.2}
 nav.days{display:flex;gap:6px;overflow-x:auto;padding:10px 0}
 nav.days button{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:15px;padding:8px 12px;border-radius:999px;cursor:pointer;min-height:42px}
 nav.days button[aria-selected="true"]{background:var(--seal);border-color:var(--seal);color:var(--on-accent)}
@@ -177,6 +213,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 .foot{color:var(--muted);font-size:14px;margin-top:28px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
 </head>
 <body>
 <div id="doodles" aria-hidden="true">
@@ -186,6 +223,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 <svg style="right:2vw;bottom:20vh" width="170" height="130" viewBox="0 0 170 130" fill="none" stroke="#F4F1E8" stroke-width="2.5" stroke-linecap="round"><text x="10" y="28" fill="#F4F1E8" stroke="none" font-family="Nanum Pen Script" font-size="28">떠든 사람</text><text x="14" y="64" fill="#F3E39A" stroke="none" font-family="Nanum Pen Script" font-size="26">반장</text><path d="M70 50 h22 M81 50 v24 M72 62 h18 M70 74 h24 M74 62 v12"/><text x="14" y="100" fill="#F3E39A" stroke="none" font-family="Nanum Pen Script" font-size="26">총무</text><path d="M70 86 h22 M81 86 v24"/></svg>
 <svg style="right:6vw;top:6vh" width="150" height="90" viewBox="0 0 150 90" fill="none" stroke="#F4F1E8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 80 L50 20 L70 50 L85 30 L130 80"/><path d="M85 30 V6 l16 6 l-16 6" stroke="#F4A6A0"/><text x="38" y="76" fill="#F4F1E8" stroke="none" font-family="Nanum Pen Script" font-size="24">망산</text></svg>
 </div>
+<datalist id="friendNames"><option value="이동환"><option value="김영주"><option value="허송연"><option value="이길수"><option value="안기철"><option value="강혜원"><option value="이순기"><option value="김경미"><option value="지남용"><option value="이인"></datalist>
 <div class="wrap">
   <div class="ledge" aria-hidden="true"></div>
   <header class="top">
@@ -200,7 +238,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   <div class="sticky">
     <nav class="stage" aria-label="단계">
       <a href="#prep" id="go-prep">준비 단계<small>떠나기 전</small></a>
-      <a href="#trip" id="go-trip">여행<small>날짜별 일정과 느낌</small></a>
+      <a href="#friends" id="go-friends">함께 한 친구들<small>설렘 기록</small></a>
+      <a href="#trip" id="go-trip">여행<small>일정과 느낌</small></a>
     </nav>
     <nav class="days" role="tablist" aria-label="날짜 선택" id="tabs"></nav>
     <div class="spacer" id="spacer"></div>
@@ -333,8 +372,9 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   /* ===== 공유 설정 (Supabase) =====
      아래 두 값을 넣으면 느낌, 사진, 선택관광 투표가 모두에게 공유돼요.
      비워 두면 지금처럼 이 폰에만 저장돼요. */
-  const SUPABASE_URL = "https://mzfdwwkgntregvreituy.supabase.co";       // 예: https://abcdefgh.supabase.co
-  const SUPABASE_ANON_KEY = "sb_publishable_ffEIS-fDfbYAOGdfecYDOg_CDoBydMM";  // Project Settings > API Keys > anon public
+  const CFG = window.DSC12_CONFIG || {};
+  const SUPABASE_URL = CFG.url || "";       // 예: https://abcdefgh.supabase.co
+  const SUPABASE_ANON_KEY = CFG.key || "";  // Project Settings > API Keys > anon public
 
   const OPTIONS = [
     {id:"dosol",   name:"도솔유람선+도솔동굴",     price:65},
@@ -367,10 +407,13 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   let sb = null, online = false, syncMsg = "";
   let myVotes = LS.get("dsc12_votes", {});   // optionId -> true (이 폰)
   let remoteVotes = [];                       // {owner,nick,option}
+  let remoteHearts = [];                      // {key,owner,nick,body,at,mine}
+  let localHearts = LS.get("dsc12_hearts", []);
+  const openFriends = new Set();
   let remotePhotos = [];                      // {key,owner,by,place,path,url,at,mine}
 
   function inTrip(){ const n = new Date(); return n.getFullYear()===2026 && n.getMonth()===11 && n.getDate()>=17 && n.getDate()<=21 ? n.getDate() : 0; }
-  let stage = location.hash === "#trip" ? "trip" : location.hash === "#prep" ? "prep" : (inTrip() ? "trip" : "prep");
+  let stage = location.hash === "#trip" ? "trip" : location.hash === "#prep" ? "prep" : location.hash === "#friends" ? "friends" : (inTrip() ? "trip" : "prep");
   let current = inTrip() ? "d" + (inTrip() - 16) : "d1";
 
   const tabs = document.getElementById("tabs");
@@ -381,7 +424,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 
   function renderNav(){
     const dd = DAYS.find(x => x.key === current);
-    document.documentElement.dataset.scene = stage === "prep" ? "chalk" : (dd && dd.scene) || "mountain";
+    document.documentElement.dataset.scene = stage === "prep" ? "chalk" : stage === "friends" ? "board" : (dd && dd.scene) || "mountain";
+    document.getElementById("go-friends").setAttribute("aria-current", stage === "friends" ? "page" : "false");
     document.getElementById("go-prep").setAttribute("aria-current", stage === "prep" ? "page" : "false");
     document.getElementById("go-trip").setAttribute("aria-current", stage === "trip" ? "page" : "false");
     tabs.hidden = stage !== "trip";
@@ -395,12 +439,13 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     });
     foot.textContent = stage === "trip"
       ? "현지 일정은 순서와 시간이 바뀔 수 있어요. 관광지 안내 글은 여행 준비용 요약이라 실제와 조금 다를 수 있어요."
+      : stage === "friends" ? "설레는 마음은 친구들 모두가 볼 수 있어요. 내가 쓴 글만 지울 수 있어요."
       : "체크한 내용은 나만 볼 수 있어요.";
   }
 
   function render(){
     view.textContent = "";
-    if (stage === "prep") renderPrep(); else renderDay();
+    if (stage === "prep") renderPrep(); else if (stage === "friends") renderFriends(); else renderDay();
   }
 
   /* ---------- prep ---------- */
@@ -482,8 +527,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     s.appendChild(addL); s.appendChild(addI); s.appendChild(r);
 
     const dr2 = el("div","doodle-row"); dr2.setAttribute("aria-hidden","true"); dr2.innerHTML = DOODLE2; s.appendChild(dr2);
-    s.appendChild(el("h3",null,"선택관광 투표"));
-    s.appendChild(el("p","status", online ? "하고 싶은 것을 체크하세요. 모두에게 인원과 이름이 보여요." : "하고 싶은 것을 체크하세요. (공유 설정 전이라 지금은 이 폰에만 저장돼요)"));
+    s.appendChild(el("h3",null,"선택관광 한눈에 보기 (1인)"));
+    if (!online) s.appendChild(el("p","status","공유 설정 전이라 지금은 이 폰의 투표만 보여요."));
     renderVotes(s);
 
     s.appendChild(el("h3",null,"쇼핑 (천저우 5곳)"));
@@ -501,44 +546,62 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   function iVoted(opt){ return online ? remoteVotes.some(v => v.option === opt && v.owner === myId) : !!myVotes[opt]; }
 
   function renderVotes(s){
+    // 1) 선택관광 한눈에 보기 (이름과 상관없이 항상 보임)
+    const people = new Set();
+    OPTIONS.forEach(o => votersOf(o.id).forEach(v => people.add(v.nick)));
+    let totalCnt = 0, totalUsd = 0;
+    const tw = el("div","tablewrap"); const t = el("table","price votetable");
+    const th = el("tr"); ["선택관광","요금","인원","신청한 친구"].forEach(x => th.appendChild(el("th",null,x))); t.appendChild(th);
+    OPTIONS.forEach(o => {
+      const vs = votersOf(o.id);
+      if (o.price){ totalCnt += vs.length; totalUsd += vs.length * o.price; }
+      const tr = el("tr");
+      tr.appendChild(el("td",null,o.name));
+      tr.appendChild(el("td",null,o.price ? "$" + o.price : "-"));
+      tr.appendChild(el("td","cnt",vs.length + "명"));
+      tr.appendChild(el("td","names", vs.length ? vs.map(v => v.nick).join(", ") : "-"));
+      t.appendChild(tr);
+    });
+    tw.appendChild(t); s.appendChild(tw);
+    s.appendChild(el("p","status","투표한 친구 " + people.size + "명, 선택관광 신청 " + totalCnt + "건, 전체 금액 $" + totalUsd));
+
+    // 2) 내 투표
+    s.appendChild(el("h3",null,"내 선택관광 고르기"));
     if (!nick){
-      const lb = el("label",null,"투표하려면 먼저 내 이름을 적어 주세요"); lb.htmlFor = "voteNick";
-      const ni = el("input"); ni.type = "text"; ni.id = "voteNick"; ni.maxLength = 20; ni.placeholder = "예: 영희";
-      const r = el("div","row"); const b = el("button","btn","이름 저장"); b.type = "button";
-      const go = async () => { const v = ni.value.trim(); if (!v){ ni.focus(); return; } await setNick(v); render(); };
-      b.addEventListener("click", go); ni.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
-      r.appendChild(b); s.appendChild(lb); s.appendChild(ni); s.appendChild(r);
+      s.appendChild(el("p","status","먼저 내 이름을 눌러 주세요."));
+      const chips = el("div","namechips");
+      FRIENDS.forEach(n => {
+        const b = el("button","chip", n); b.type = "button";
+        b.addEventListener("click", async () => { await setNick(n); render(); });
+        chips.appendChild(b);
+      });
+      s.appendChild(chips);
       return;
     }
     const box = el("div","group");
-    const people = new Set();
-    OPTIONS.forEach(o => votersOf(o.id).forEach(v => people.add(v.nick)));
-    const h = el("h4"); h.appendChild(document.createTextNode("선택관광 (1인)")); h.appendChild(el("span",null,"투표한 사람 " + people.size + "명"));
+    const h = el("h4"); h.appendChild(document.createTextNode(nick + "의 선택")); h.appendChild(el("span",null,"하고 싶은 것 체크"));
     box.appendChild(h);
     OPTIONS.forEach(o => {
       const lb = el("label","check vote");
       const cb = el("input"); cb.type = "checkbox"; cb.checked = iVoted(o.id);
       cb.addEventListener("change", async () => { cb.disabled = true; await setVote(o.id, cb.checked); render(); });
       const tx = el("div","tx");
-      const top = el("span"); top.textContent = o.name + (o.price ? " $" + o.price : "");
-      tx.appendChild(top);
-      const vs = votersOf(o.id);
-      tx.appendChild(el("small",null, vs.length ? vs.map(v => v.nick + (v.me ? "(나)" : "")).join(", ") : "아직 없음"));
+      tx.appendChild(el("span",null, o.name + (o.price ? " $" + o.price : "")));
       lb.appendChild(cb); lb.appendChild(tx);
-      lb.appendChild(el("span","count", vs.length + "명"));
       box.appendChild(lb);
     });
     s.appendChild(box);
     const mine = OPTIONS.filter(o => iVoted(o.id) && o.price).reduce((a,o) => a + o.price, 0);
     const r = el("div","row");
-    r.appendChild(el("span",null,"내 선택관광 합계 $" + mine + " (" + nick + ")"));
+    r.appendChild(el("span",null,"내 선택관광 합계 $" + mine));
     const rn = el("button","btn ghost","이름 바꾸기"); rn.type = "button";
-    rn.addEventListener("click", async () => { const v = (prompt("새 이름을 적어 주세요", nick) || "").trim(); if (v){ await setNick(v); render(); } });
+    rn.addEventListener("click", () => { location.hash = "#friends"; });
     const cp = el("button","btn ghost","신청 현황 복사"); cp.type = "button";
     const cbx = el("div","copybox");
     cp.addEventListener("click", () => {
       const lines = ["[동산초 12회 선택관광 신청 현황]"];
       OPTIONS.forEach(o => { const vs = votersOf(o.id); lines.push(o.name + (o.price ? " ($" + o.price + ")" : "") + ": " + vs.length + "명" + (vs.length ? " - " + vs.map(v => v.nick).join(", ") : "")); });
+      lines.push("투표한 친구 " + people.size + "명, 신청 " + totalCnt + "건, 전체 $" + totalUsd);
       copyText(lines.join("\n"), cbx);
     });
     r.appendChild(rn); r.appendChild(cp); s.appendChild(r); s.appendChild(cbx);
@@ -571,7 +634,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
       try {
         await Promise.all([
           sb.from("notes").update({nick:nick}).eq("owner", myId),
-          sb.from("votes").update({nick:nick}).eq("owner", myId)
+          sb.from("votes").update({nick:nick}).eq("owner", myId),
+          sb.from("hearts").update({nick:nick}).eq("owner", myId)
         ]);
       } catch(e){}
       await refreshRemote();
@@ -593,6 +657,134 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 
   function saveChecks(){
     LS.set("dsc12_checked", checked); LS.set("dsc12_custom", custom);
+  }
+
+  /* ---------- friends ---------- */
+  const FRIENDS = ["김동환","김영주","허송연","이길수","안기철","강혜원","이순기","김경미","지남용","이인"];
+  function heartsAll(){
+    const src = online ? remoteHearts : localHearts.map(x => Object.assign({mine:true}, x));
+    return src.slice().sort((a,b) => b.at - a.at);
+  }
+  function dLabel(at){
+    const start = new Date(2026, 11, 17); const d = new Date(at); d.setHours(0,0,0,0);
+    const diff = Math.round((start - d) / 86400000);
+    if (diff > 0) return "D-" + diff;
+    if (diff === 0) return "D-day";
+    if (diff >= -4) return "여행 " + (1 - diff) + "일차";
+    return "다녀와서";
+  }
+  function shortName(n){ return n.length > 2 ? n.slice(1) : n; }
+
+  function renderFriends(){
+    const s = el("section","friends");
+    const head = el("div","dayhead");
+    head.appendChild(el("span","date", String(FRIENDS.length)));
+    const h = el("div"); h.appendChild(el("h2",null,"함께 한 친구들")); h.appendChild(el("small",null,"동산초 12회, 설레는 마음을 남겨요"));
+    head.appendChild(h); s.appendChild(head);
+
+    // 나는 누구?
+    const who = el("div","paper");
+    who.appendChild(el("h3",null, nick && FRIENDS.includes(nick) ? "나는 " + nick + "!" : "나는 누구예요? 내 이름을 눌러 주세요"));
+    const chips = el("div","chips");
+    FRIENDS.forEach(n => {
+      const b = el("button","chip", n); b.type = "button"; b.setAttribute("aria-pressed", nick === n ? "true" : "false");
+      b.addEventListener("click", async () => {
+        if (nick === n) return;
+        if (nick && !confirm("내 이름을 " + n + "(으)로 바꿀까요?")) return;
+        await setNick(n); render();
+      });
+      chips.appendChild(b);
+    });
+    who.appendChild(chips); s.appendChild(who);
+
+    // 친구 카드
+    const all = heartsAll();
+    const grid = el("div","fgrid");
+    FRIENDS.forEach((n, i) => {
+      const mine = all.filter(x => x.nick === n);
+      const isOpen = openFriends.has(n);
+      const card = el("button","fcard" + (isOpen ? " open" : "") + (nick === n ? " me" : "")); card.type = "button";
+      card.style.setProperty("--r", ((i * 37) % 5 - 2) * 0.8 + "deg");
+      card.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      const top = el("div","ftop");
+      top.appendChild(el("span","avatar", shortName(n)));
+      const nm = el("div"); nm.appendChild(el("strong",null,n + (nick === n ? " (나)" : ""))); nm.appendChild(el("small",null, mine.length ? "설렘 " + mine.length + "개" : "아직 조용해요"));
+      top.appendChild(nm); card.appendChild(top);
+      if (!isOpen){
+        if (mine[0]) card.appendChild(el("p","snip", "“" + (mine[0].body.length > 42 ? mine[0].body.slice(0,42) + "…" : mine[0].body) + "”"));
+      } else {
+        if (!mine.length) card.appendChild(el("p","snip","아직 남긴 마음이 없어요."));
+        mine.forEach(x => { const p = el("p","full"); p.appendChild(el("b",null, dLabel(x.at) + " ")); p.appendChild(document.createTextNode(x.body)); card.appendChild(p); });
+      }
+      card.addEventListener("click", () => { if (openFriends.has(n)) openFriends.delete(n); else openFriends.add(n); render(); });
+      grid.appendChild(card);
+    });
+    s.appendChild(grid);
+
+    // 쓰기
+    const w = el("div","paper write");
+    if (!nick){
+      w.appendChild(el("p",null,"위에서 내 이름을 먼저 눌러 주세요. 그다음 설레는 마음을 남길 수 있어요."));
+    } else {
+      const lb = el("label",null, nick + "의 설레는 마음 (" + dLabel(Date.now()) + ")"); lb.htmlFor = "heartText";
+      const ta = el("textarea"); ta.id = "heartText"; ta.maxLength = 500; ta.placeholder = "출발까지 남은 날, 지금 내 마음은? 가장 기대되는 것, 친구들에게 하고 싶은 말";
+      const r = el("div","row"); const b = el("button","btn","마음 남기기"); b.type = "button";
+      const st = el("span","status", online ? "모두가 볼 수 있어요" : "공유 설정 전이라 이 폰에만 저장돼요"); st.setAttribute("aria-live","polite");
+      b.addEventListener("click", async () => {
+        const v = ta.value.trim(); if (!v){ st.textContent = "한 줄이라도 적어 주세요"; ta.focus(); return; }
+        b.disabled = true; st.textContent = "남기는 중";
+        const ok = await addHeart(v);
+        b.disabled = false;
+        if (ok){ ta.value = ""; render(); } else st.textContent = "저장하지 못했어요. 인터넷 연결을 확인해 주세요";
+      });
+      r.appendChild(b); r.appendChild(st);
+      w.appendChild(lb); w.appendChild(ta); w.appendChild(r);
+    }
+    s.appendChild(w);
+
+    // 게시판
+    s.appendChild(el("h3","boardtitle","설렘 게시판 (" + all.length + ")"));
+    if (!all.length) s.appendChild(el("p","paper","첫 번째 설렘을 남겨 주세요!"));
+    all.slice(0, 80).forEach((x, i) => {
+      const c = el("div","paper post"); c.style.setProperty("--r", ((i * 53) % 5 - 2) * 0.5 + "deg");
+      const top = el("div","ptop"); top.appendChild(el("strong",null,x.nick)); top.appendChild(el("span","dl", dLabel(x.at)));
+      c.appendChild(top); c.appendChild(el("p",null,x.body));
+      if (x.mine){
+        const d = el("button","del","지우기"); d.type = "button";
+        d.addEventListener("click", async () => { if (confirm("이 글을 지울까요?")){ await deleteHeart(x); render(); } });
+        c.appendChild(d);
+      }
+      s.appendChild(c);
+    });
+    if (all.length){
+      const r = el("div","row"); const cp = el("button","btn ghost","설렘 게시판 복사"); cp.type = "button";
+      const box = el("div","copybox");
+      cp.addEventListener("click", () => {
+        const lines = ["[동산초 12회 설렘 게시판]"];
+        all.slice().reverse().forEach(x => lines.push("- " + x.nick + " (" + dLabel(x.at) + "): " + x.body));
+        copyText(lines.join("\n"), box);
+      });
+      r.appendChild(cp); s.appendChild(r); s.appendChild(box);
+    }
+    view.appendChild(s);
+  }
+
+  async function addHeart(body){
+    body = body.slice(0, 500);
+    if (!online){
+      localHearts.push({key:"h" + Date.now(), nick:nick, body:body, at:Date.now()});
+      LS.set("dsc12_hearts", localHearts); return true;
+    }
+    try {
+      const r = await sb.from("hearts").insert({owner:myId, nick:nick, body:body});
+      if (r.error) throw r.error;
+      await refreshRemote(); return true;
+    } catch(e){ return false; }
+  }
+  async function deleteHeart(x){
+    if (!online){ localHearts = localHearts.filter(h => h.key !== x.key); LS.set("dsc12_hearts", localHearts); return; }
+    try { await sb.from("hearts").delete().eq("id", x.key).eq("owner", myId); } catch(e){}
+    await refreshRemote();
   }
 
   /* ---------- trip ---------- */
@@ -749,7 +941,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const up = el("div","up");
     {
       const nl = el("label",null,"찍은 사람"); nl.htmlFor = "by-" + it.id;
-      const ni = el("input"); ni.type = "text"; ni.id = "by-" + it.id; ni.maxLength = 20; ni.value = nick || ""; ni.placeholder = "예: 영희";
+      const ni = el("input"); ni.type = "text"; ni.id = "by-" + it.id; ni.maxLength = 20; ni.value = nick || ""; ni.placeholder = "예: 김영주"; ni.setAttribute("list","friendNames");
       const fl = el("label",null,"사진 고르기 (여러 장 가능)"); fl.htmlFor = "f-" + it.id; fl.style.marginTop = "8px";
       const fi = el("input"); fi.type = "file"; fi.id = "f-" + it.id; fi.accept = "image/*"; fi.multiple = true;
       const r = el("div","row"); const ub = el("button","btn","사진 올리기"); ub.type = "button";
@@ -820,7 +1012,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     friends.forEach(n => { const d = el("div","note"); d.appendChild(el("div","who",n.who)); d.appendChild(el("p",null,n.text)); panel.appendChild(d); });
     if (!nick){
       const lb = el("label",null,"내 이름"); lb.htmlFor = "nick-" + it.id;
-      const ni = el("input"); ni.type = "text"; ni.id = "nick-" + it.id; ni.maxLength = 20; ni.placeholder = "예: 영희";
+      const ni = el("input"); ni.type = "text"; ni.id = "nick-" + it.id; ni.maxLength = 20; ni.placeholder = "예: 김영주"; ni.setAttribute("list","friendNames");
       panel.appendChild(lb); panel.appendChild(ni);
     }
     const lt = el("label",null, it.name + "에서 내 느낌"); lt.htmlFor = "t-" + it.id; lt.style.marginTop = "8px";
@@ -881,11 +1073,15 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   async function refreshRemote(){
     if (!online) return;
     try {
-      const [n, v, p] = await Promise.all([
+      const [n, v, p, h] = await Promise.all([
         sb.from("notes").select("owner,nick,place,body"),
         sb.from("votes").select("owner,nick,option"),
-        sb.from("photos").select("id,owner,by_name,place,path,created_at").order("created_at", {ascending:true}).limit(1000)
+        sb.from("photos").select("id,owner,by_name,place,path,created_at").order("created_at", {ascending:true}).limit(1000),
+        sb.from("hearts").select("id,owner,nick,body,created_at").order("created_at", {ascending:false}).limit(500)
       ]);
+      if (!h.error) remoteHearts = (h.data || []).filter(r => r && typeof r.body === "string").map(r => ({
+        key:r.id, owner:r.owner, nick:str(r.nick, 20) || "친구", body:str(r.body, 500), at:Date.parse(r.created_at) || 0, mine:r.owner === myId
+      }));
       if (!n.error){
         const next = {};
         (n.data || []).forEach(r => {
@@ -937,7 +1133,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   }
 
   function fromHash(){
-    if (location.hash === "#trip") stage = "trip"; else if (location.hash === "#prep") stage = "prep";
+    if (location.hash === "#trip") stage = "trip"; else if (location.hash === "#prep") stage = "prep"; else if (location.hash === "#friends") stage = "friends";
     renderNav(); render();
   }
   window.addEventListener("hashchange", () => { fromHash(); window.scrollTo({top:0}); });
