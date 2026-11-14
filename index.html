@@ -64,6 +64,8 @@ nav.days[hidden]{display:none}
 .tray::before{left:22%;width:46px;background:#F4F1E8}
 .tray::after{left:34%;width:34px;background:#F3E39A;transform:rotate(-6deg)}
 .proto{display:inline-block;margin:8px 0 0;padding:3px 10px;border:1px dashed var(--line);border-radius:99px;font-size:13px;color:var(--muted)}
+.check.vote input:checked + .tx > span{text-decoration:none;color:var(--ink);font-weight:700}
+.vote .count{flex:none;font-weight:700;color:var(--pine);margin-left:6px}
 .duty{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-size:22px;color:var(--pine);margin:6px 0 0;line-height:1.2}
 :root[data-scene="chalk"] :is(.wx,.dday,.group,.must li,.infop,.stage,nav.days button,.acts a,.acts button){border-style:dashed}
 header.top{padding:26px 0 16px;display:flex;gap:16px;align-items:flex-start}
@@ -174,6 +176,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 .tablewrap{overflow-x:auto}
 .foot{color:var(--muted);font-size:14px;margin-top:28px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 </head>
 <body>
 <div id="doodles" aria-hidden="true">
@@ -190,7 +193,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     <div>
       <h1>동산초 12회 중국여행 답사기</h1>
       <p class="sub">2026년 12월 17일(목) ~ 21일(월), 4박 5일, 친구 10명<br>노랑풍선 패키지, 아시아나항공</p>
-      <p class="proto">프로토타입 v0.1, 입력한 내용은 이 폰에만 저장돼요</p>
+      <p class="proto" id="syncState" aria-live="polite">연결 확인 중</p>
       <p class="duty">주번: 동산초 12회 일동. 떠든 사람은 칠판에 이름 적음!</p>
     </div>
   </header>
@@ -327,24 +330,44 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   ];
 
   /* ---------- storage ---------- */
+  /* ===== 공유 설정 (Supabase) =====
+     아래 두 값을 넣으면 느낌, 사진, 선택관광 투표가 모두에게 공유돼요.
+     비워 두면 지금처럼 이 폰에만 저장돼요. */
+  const SUPABASE_URL = "https://mzfdwwkgntregvreituy.supabase.co";       // 예: https://abcdefgh.supabase.co
+  const SUPABASE_ANON_KEY = "sb_publishable_ffEIS-fDfbYAOGdfecYDOg_CDoBydMM";  // Project Settings > API Keys > anon public
+
+  const OPTIONS = [
+    {id:"dosol",   name:"도솔유람선+도솔동굴",     price:65},
+    {id:"massage", name:"발+전신마사지",           price:50},
+    {id:"pearl",   name:"주강유람선+광저우 야경",  price:50},
+    {id:"guilong", name:"구룡수체+비천산 뗏목",    price:45},
+    {id:"fenglin", name:"봉림소진",                price:40},
+    {id:"none",    name:"선택관광 안 함",          price:0}
+  ];
+  const OPT_IDS = new Set(OPTIONS.map(o => o.id));
+
   const LS = {
     get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
     set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
   };
   let nick = LS.get("dsc12_nick", "");
   let myNotes = LS.get("dsc12_notes", {});
-  let checked = LS.get("dsc12_checked", {"practice-hat":true});
-  let custom = LS.get("dsc12_custom", [
-    {id:"practice-motion-sickness", text:"실습 멀미약"},
-    {id:"practice-extra-clothes", text:"실습 여벌 옷"},
-    {id:"practice-hat", text:"실습 모자"}
-  ]);
+  let checked = LS.get("dsc12_checked", {});
+  let custom = LS.get("dsc12_custom", []);
+  // 예전에 들어간 실습 항목 정리
+  custom = (Array.isArray(custom) ? custom : []).filter(c => c && typeof c.id === "string" && !c.id.startsWith("practice-"));
+  Object.keys(checked).forEach(k => { if (k.startsWith("practice-")) delete checked[k]; });
+  LS.set("dsc12_checked", checked); LS.set("dsc12_custom", custom);
   let others = {};
   let photoDocs = {};   // docId -> items[]
   let assets = null, photoQ = Promise.resolve();
   const infoOpen = new Set();
   let db = null, myId = null, shared = false, notesQ = Promise.resolve(), checkQ = Promise.resolve();
   const open = new Set();
+  let sb = null, online = false, syncMsg = "";
+  let myVotes = LS.get("dsc12_votes", {});   // optionId -> true (이 폰)
+  let remoteVotes = [];                       // {owner,nick,option}
+  let remotePhotos = [];                      // {key,owner,by,place,path,url,at,mine}
 
   function inTrip(){ const n = new Date(); return n.getFullYear()===2026 && n.getMonth()===11 && n.getDate()>=17 && n.getDate()<=21 ? n.getDate() : 0; }
   let stage = location.hash === "#trip" ? "trip" : location.hash === "#prep" ? "prep" : (inTrip() ? "trip" : "prep");
@@ -459,11 +482,9 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     s.appendChild(addL); s.appendChild(addI); s.appendChild(r);
 
     const dr2 = el("div","doodle-row"); dr2.setAttribute("aria-hidden","true"); dr2.innerHTML = DOODLE2; s.appendChild(dr2);
-    s.appendChild(el("h3",null,"선택관광 (1인, 원하는 사람만)"));
-    const tw = el("div","tablewrap"); const t = el("table","price");
-    [["도솔유람선+도솔동굴","$65"],["발+전신마사지","$50"],["주강유람선+광저우 야경","$50"],["구룡수체+비천산 뗏목","$45"],["봉림소진","$40"]]
-      .forEach(([a,b]) => { const tr = el("tr"); tr.appendChild(el("td",null,a)); tr.appendChild(el("td",null,b)); t.appendChild(tr); });
-    tw.appendChild(t); s.appendChild(tw);
+    s.appendChild(el("h3",null,"선택관광 투표"));
+    s.appendChild(el("p","status", online ? "하고 싶은 것을 체크하세요. 모두에게 인원과 이름이 보여요." : "하고 싶은 것을 체크하세요. (공유 설정 전이라 지금은 이 폰에만 저장돼요)"));
+    renderVotes(s);
 
     s.appendChild(el("h3",null,"쇼핑 (천저우 5곳)"));
     s.appendChild(el("p",null,"한약, 은, 차, 동충하초, 라텍스. 안 사도 괜찮아요. 사면 영수증은 꼭 챙기기."));
@@ -471,13 +492,107 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     yl.appendChild(ya); s.appendChild(yl);
     view.appendChild(s);
   }
+  function votersOf(opt){
+    if (online){
+      return remoteVotes.filter(v => v.option === opt).map(v => ({nick: v.nick || "이름 없음", me: v.owner === myId}));
+    }
+    return myVotes[opt] ? [{nick: nick || "나", me:true}] : [];
+  }
+  function iVoted(opt){ return online ? remoteVotes.some(v => v.option === opt && v.owner === myId) : !!myVotes[opt]; }
+
+  function renderVotes(s){
+    if (!nick){
+      const lb = el("label",null,"투표하려면 먼저 내 이름을 적어 주세요"); lb.htmlFor = "voteNick";
+      const ni = el("input"); ni.type = "text"; ni.id = "voteNick"; ni.maxLength = 20; ni.placeholder = "예: 영희";
+      const r = el("div","row"); const b = el("button","btn","이름 저장"); b.type = "button";
+      const go = async () => { const v = ni.value.trim(); if (!v){ ni.focus(); return; } await setNick(v); render(); };
+      b.addEventListener("click", go); ni.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+      r.appendChild(b); s.appendChild(lb); s.appendChild(ni); s.appendChild(r);
+      return;
+    }
+    const box = el("div","group");
+    const people = new Set();
+    OPTIONS.forEach(o => votersOf(o.id).forEach(v => people.add(v.nick)));
+    const h = el("h4"); h.appendChild(document.createTextNode("선택관광 (1인)")); h.appendChild(el("span",null,"투표한 사람 " + people.size + "명"));
+    box.appendChild(h);
+    OPTIONS.forEach(o => {
+      const lb = el("label","check vote");
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = iVoted(o.id);
+      cb.addEventListener("change", async () => { cb.disabled = true; await setVote(o.id, cb.checked); render(); });
+      const tx = el("div","tx");
+      const top = el("span"); top.textContent = o.name + (o.price ? " $" + o.price : "");
+      tx.appendChild(top);
+      const vs = votersOf(o.id);
+      tx.appendChild(el("small",null, vs.length ? vs.map(v => v.nick + (v.me ? "(나)" : "")).join(", ") : "아직 없음"));
+      lb.appendChild(cb); lb.appendChild(tx);
+      lb.appendChild(el("span","count", vs.length + "명"));
+      box.appendChild(lb);
+    });
+    s.appendChild(box);
+    const mine = OPTIONS.filter(o => iVoted(o.id) && o.price).reduce((a,o) => a + o.price, 0);
+    const r = el("div","row");
+    r.appendChild(el("span",null,"내 선택관광 합계 $" + mine + " (" + nick + ")"));
+    const rn = el("button","btn ghost","이름 바꾸기"); rn.type = "button";
+    rn.addEventListener("click", async () => { const v = (prompt("새 이름을 적어 주세요", nick) || "").trim(); if (v){ await setNick(v); render(); } });
+    const cp = el("button","btn ghost","신청 현황 복사"); cp.type = "button";
+    const cbx = el("div","copybox");
+    cp.addEventListener("click", () => {
+      const lines = ["[동산초 12회 선택관광 신청 현황]"];
+      OPTIONS.forEach(o => { const vs = votersOf(o.id); lines.push(o.name + (o.price ? " ($" + o.price + ")" : "") + ": " + vs.length + "명" + (vs.length ? " - " + vs.map(v => v.nick).join(", ") : "")); });
+      copyText(lines.join("\n"), cbx);
+    });
+    r.appendChild(rn); r.appendChild(cp); s.appendChild(r); s.appendChild(cbx);
+  }
+
+  async function setVote(opt, on){
+    if (!OPT_IDS.has(opt)) return;
+    const others = on && opt === "none" ? OPTIONS.filter(o => o.id !== "none").map(o => o.id) : (on ? ["none"] : []);
+    if (!online){
+      if (on) myVotes[opt] = true; else delete myVotes[opt];
+      others.forEach(k => delete myVotes[k]);
+      LS.set("dsc12_votes", myVotes); return;
+    }
+    try {
+      if (on){
+        const r = await sb.from("votes").upsert({owner:myId, nick:nick, option:opt}, {onConflict:"owner,option"});
+        if (r.error) throw r.error;
+        if (others.length){ await sb.from("votes").delete().eq("owner", myId).in("option", others); }
+      } else {
+        const r = await sb.from("votes").delete().eq("owner", myId).eq("option", opt);
+        if (r.error) throw r.error;
+      }
+    } catch(e){ alert("투표를 저장하지 못했어요. 인터넷 연결을 확인해 주세요."); }
+    await refreshRemote();
+  }
+
+  async function setNick(v){
+    nick = v.slice(0,20); LS.set("dsc12_nick", nick);
+    if (online){
+      try {
+        await Promise.all([
+          sb.from("notes").update({nick:nick}).eq("owner", myId),
+          sb.from("votes").update({nick:nick}).eq("owner", myId)
+        ]);
+      } catch(e){}
+      await refreshRemote();
+    }
+  }
+
+  function copyText(text, box){
+    box.textContent = "";
+    const done = () => { box.textContent = ""; box.appendChild(el("p","status","복사했어요. 단톡방에 붙여 넣으세요.")); };
+    const fallback = () => {
+      box.textContent = "";
+      const ta = el("textarea"); ta.value = text; ta.readOnly = true; ta.setAttribute("aria-label","복사할 내용");
+      box.appendChild(el("p","status","아래 글을 길게 눌러 전체 선택 후 복사하세요.")); box.appendChild(ta); ta.focus(); ta.select();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+
   function allItems(){ return CHECK.flatMap(g => g.items).concat(custom.map(c => [c.id, c.text, ""])); }
 
   function saveChecks(){
     LS.set("dsc12_checked", checked); LS.set("dsc12_custom", custom);
-    if (!db || !myId) return;
-    const body = { checked: Object.assign({}, checked), custom: custom.slice(), updatedAt: Date.now() };
-    checkQ = checkQ.then(() => db.doc("data/users/" + myId + "/checklist").set(body).catch(() => {}));
   }
 
   /* ---------- trip ---------- */
@@ -565,7 +680,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     } catch(e){ localPhotos = []; }
   }
   function photosFor(id){
-    return localPhotos.filter(p => p.place === id).sort((a,b) => a.at - b.at);
+    const src = online ? remotePhotos : localPhotos.map(p => Object.assign({mine:true}, p));
+    return src.filter(p => p.place === id).sort((a,b) => a.at - b.at);
   }
 
   function placeActions(it){
@@ -620,9 +736,9 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
         img.addEventListener("error", () => { a.textContent = ""; a.appendChild(el("span","miss","이 폰에서는 사진을 볼 수 없어요")); });
         a.appendChild(img); f.appendChild(a);
         const cap = el("figcaption"); cap.appendChild(el("span",null,p.by));
-        {
+        if (p.mine){
           const d = el("button",null,"삭제"); d.type = "button"; d.setAttribute("aria-label", p.by + " 사진 삭제");
-          d.addEventListener("click", () => { if (confirm("이 사진을 지울까요?")) removePhoto(p.key); });
+          d.addEventListener("click", () => { if (confirm("이 사진을 지울까요?")) removePhoto(p); });
           cap.appendChild(d);
         }
         f.appendChild(cap); g.appendChild(f);
@@ -649,14 +765,23 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
           st.textContent = "올리는 중 " + (i+1) + " / " + files.length;
           try {
             const blob = await shrink(files[i]);
-            const rec = {key:"p" + Date.now() + "-" + i, place:it.id, by:by.slice(0,20), at:Date.now(), blob:blob};
-            await idbTx("readwrite", st => st.put(rec)); ok++;
+            if (online){
+              const path = myId + "/" + Date.now() + "-" + i + ".jpg";
+              const u = await sb.storage.from("photos").upload(path, blob, {contentType: blob.type || "image/jpeg"});
+              if (u.error) throw u.error;
+              const r = await sb.from("photos").insert({owner:myId, by_name:by.slice(0,20), place:it.id, path:path});
+              if (r.error) throw r.error;
+            } else {
+              const rec = {key:"p" + Date.now() + "-" + i, place:it.id, by:by.slice(0,20), at:Date.now(), blob:blob};
+              await idbTx("readwrite", st => st.put(rec));
+            }
+            ok++;
           } catch(e){ fail++; }
         }
         ub.disabled = false;
-        await loadPhotos();
+        if (online) await refreshRemote(); else await loadPhotos();
         render();
-        if (fail) alert("사진 " + fail + "장은 저장하지 못했어요. 폰 저장 공간을 확인해 주세요.");
+        if (fail) alert("사진 " + fail + "장은 올리지 못했어요. 인터넷 연결이나 저장 공간을 확인해 주세요.");
       });
       r.appendChild(ub); r.appendChild(st);
       up.appendChild(nl); up.appendChild(ni); up.appendChild(fl); up.appendChild(fi); up.appendChild(r);
@@ -675,14 +800,23 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     } catch(e){ return file; }
   }
 
-  async function removePhoto(key){
-    try { await idbTx("readwrite", st => st.delete(key)); } catch(e){}
-    await loadPhotos(); render();
+  async function removePhoto(p){
+    if (online){
+      try {
+        await sb.storage.from("photos").remove([p.path]);
+        await sb.from("photos").delete().eq("id", p.key).eq("owner", myId);
+      } catch(e){}
+      await refreshRemote();
+    } else {
+      try { await idbTx("readwrite", st => st.delete(p.key)); } catch(e){}
+      await loadPhotos();
+    }
+    render();
   }
 
   function fillPanel(panel, it, list){
     const friends = list.filter(n => !n.me);
-    if (!friends.length) panel.appendChild(el("p","empty","프로토타입에서는 느낌이 이 폰에만 저장돼요."));
+    if (!friends.length) panel.appendChild(el("p","empty", online ? "아직 친구들 느낌이 없어요. 먼저 남겨 보세요." : "공유 설정 전이라 느낌이 이 폰에만 저장돼요."));
     friends.forEach(n => { const d = el("div","note"); d.appendChild(el("div","who",n.who)); d.appendChild(el("p",null,n.text)); panel.appendChild(d); });
     if (!nick){
       const lb = el("label",null,"내 이름"); lb.htmlFor = "nick-" + it.id;
@@ -693,20 +827,21 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const ta = el("textarea"); ta.id = "t-" + it.id; ta.maxLength = 1000; ta.value = myNotes[it.id] || "";
     ta.placeholder = "보고 느낀 것, 맛있었던 것, 기억하고 싶은 장면";
     panel.appendChild(lt); panel.appendChild(ta);
-    const r = el("div","row"); const sb = el("button","btn","저장"); sb.type = "button";
-    const st = el("span","status", "이 폰에 저장돼요"); st.setAttribute("aria-live","polite");
-    sb.addEventListener("click", async () => {
+    const r = el("div","row"); const sbtn = el("button","btn","저장"); sbtn.type = "button";
+    const st = el("span","status", online ? "저장하면 모두가 볼 수 있어요" : "이 폰에 저장돼요"); st.setAttribute("aria-live","polite");
+    sbtn.addEventListener("click", async () => {
       const nIn = document.getElementById("nick-" + it.id);
-      if (nIn){ const v = nIn.value.trim(); if (!v){ st.textContent = "이름을 먼저 적어 주세요"; nIn.focus(); return; } nick = v; LS.set("dsc12_nick", nick); }
+      if (nIn){ const v = nIn.value.trim(); if (!v){ st.textContent = "이름을 먼저 적어 주세요"; nIn.focus(); return; } await setNick(v); }
       myNotes[it.id] = ta.value.trim(); if (!myNotes[it.id]) delete myNotes[it.id];
       LS.set("dsc12_notes", myNotes);
-      sb.disabled = true; st.textContent = "저장 중";
-      sb.disabled = false;
-      st.textContent = "저장했어요";
+      sbtn.disabled = true; st.textContent = "저장 중";
+      const ok = await saveNoteRemote(it.id, myNotes[it.id] || "");
+      sbtn.disabled = false;
+      st.textContent = !online ? "이 폰에 저장했어요" : ok ? "저장했어요. 모두가 볼 수 있어요" : "인터넷 문제로 이 폰에만 저장했어요";
       const f = panel.previousSibling && panel.previousSibling.querySelector(".feel");
       if (f){ const n = notesFor(it.id).length; f.textContent = n ? "느낌 " + n : "느낌 쓰기"; }
     });
-    r.appendChild(sb); r.appendChild(st); panel.appendChild(r);
+    r.appendChild(sbtn); r.appendChild(st); panel.appendChild(r);
   }
 
   function copyDay(day, box){
@@ -728,60 +863,77 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
   }
 
-  async function pushNotes(){
-    if (!db || !myId) return false;
-    const body = { nick: nick || "", notes: Object.assign({}, myNotes), updatedAt: Date.now() };
-    let ok = false;
-    notesQ = notesQ.then(async () => {
-      try { await db.collection("notes").doc(myId).set(body); ok = true; }
-      catch(e){ if (e && e.code === "invalid_argument") shared = false; ok = false; }
-    });
-    await notesQ; return ok;
-  }
-
-  function onNotes(snap){
-    const next = {};
-    snap.docs.forEach(d => { if (d.exists){ const v = d.data(); if (v && typeof v === "object") next[d.id] = v; } });
-    others = next;
-    if (myId && next[myId] && next[myId].notes && typeof next[myId].notes === "object"){
-      const server = next[myId].notes;
-      Object.keys(server).forEach(k => { if (typeof server[k] === "string" && !(k in myNotes)) myNotes[k] = server[k]; });
-      if (!nick && typeof next[myId].nick === "string"){ nick = next[myId].nick; LS.set("dsc12_nick", nick); }
-      LS.set("dsc12_notes", myNotes);
-    }
-    const a = document.activeElement;
-    if (stage === "trip" && !(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT"))) render();
-  }
-
-  async function connect(){
-    if (!window.claude || typeof window.claude.use !== "function") return;
+  async function saveNoteRemote(place, body){
+    if (!online) return false;
     try {
-      const [u, d] = await Promise.all([window.claude.use("user"), window.claude.use("db")]);
-      if (!u || !d) return;
-      const id = await u.id(); if (!id) return;
-      let canWrite = null; try { canWrite = await u.can("data.write"); } catch(e){}
-      db = d; myId = id; shared = canWrite !== false;
-      try {
-        const cs = await db.doc("data/users/" + myId + "/checklist").get();
-        if (cs.exists){
-          const v = cs.data() || {};
-          if (v.checked && typeof v.checked === "object") Object.keys(v.checked).forEach(k => { if (v.checked[k]) checked[k] = true; });
-          if (Array.isArray(v.custom)) v.custom.forEach(c => { if (c && typeof c.text === "string" && typeof c.id === "string" && !custom.some(x => x.id === c.id)) custom.push({id:c.id, text:c.text.slice(0,40)}); });
-          LS.set("dsc12_checked", checked); LS.set("dsc12_custom", custom);
-          if (stage === "prep") render();
-        }
-      } catch(e){}
-      db.collection("notes").onSnapshot(onNotes, () => {});
-      db.collection("photos").onSnapshot(snap => {
+      const r = body
+        ? await sb.from("notes").upsert({owner:myId, nick:nick, place:place, body:body.slice(0,1000), updated_at:new Date().toISOString()}, {onConflict:"owner,place"})
+        : await sb.from("notes").delete().eq("owner", myId).eq("place", place);
+      if (r.error) throw r.error;
+      await refreshRemote();
+      return true;
+    } catch(e){ return false; }
+  }
+
+  const PLACE_IDS = new Set(DAYS.flatMap(d => d.items.filter(i => i.id).map(i => i.id)));
+  const str = (v, n) => typeof v === "string" ? v.slice(0, n) : "";
+
+  async function refreshRemote(){
+    if (!online) return;
+    try {
+      const [n, v, p] = await Promise.all([
+        sb.from("notes").select("owner,nick,place,body"),
+        sb.from("votes").select("owner,nick,option"),
+        sb.from("photos").select("id,owner,by_name,place,path,created_at").order("created_at", {ascending:true}).limit(1000)
+      ]);
+      if (!n.error){
         const next = {};
-        snap.docs.forEach(d => { if (d.exists){ const v = d.data(); if (v && Array.isArray(v.items)) next[d.id] = v.items.slice(0, 500); } });
-        photoDocs = next;
-        const a = document.activeElement;
-        if (stage === "trip" && !(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT"))) render();
-      }, () => {});
-      window.claude.use("assets").then(x => { assets = x; if (stage === "trip") render(); }, () => {});
-      if (stage === "trip") render();
-    } catch(e){}
+        (n.data || []).forEach(r => {
+          if (!r || !PLACE_IDS.has(r.place)) return;
+          const o = next[r.owner] || (next[r.owner] = {nick: str(r.nick, 20), notes:{}});
+          o.notes[r.place] = str(r.body, 1000);
+          if (r.owner === myId && !(r.place in myNotes)) myNotes[r.place] = o.notes[r.place];
+        });
+        others = next; LS.set("dsc12_notes", myNotes);
+      }
+      if (!v.error) remoteVotes = (v.data || []).filter(r => r && OPT_IDS.has(r.option)).map(r => ({owner:r.owner, nick:str(r.nick, 20), option:r.option}));
+      if (!p.error) remotePhotos = (p.data || []).filter(r => r && PLACE_IDS.has(r.place) && typeof r.path === "string").map(r => ({
+        key:r.id, owner:r.owner, by:str(r.by_name, 20) || "친구", place:r.place, path:r.path,
+        url: sb.storage.from("photos").getPublicUrl(r.path).data.publicUrl, at: Date.parse(r.created_at) || 0, mine: r.owner === myId
+      }));
+      setSync("모두에게 공유 중");
+    } catch(e){ setSync("인터넷 연결을 확인해 주세요"); }
+  }
+
+  function setSync(t){ syncMsg = t; const e = document.getElementById("syncState"); if (e) e.textContent = t; }
+  function softRender(){ const a = document.activeElement; if (!(a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT"))) render(); }
+
+  async function initRemote(){
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY){ setSync("공유 설정 전: 입력한 내용은 이 폰에만 저장돼요"); return; }
+    if (!window.supabase || !window.supabase.createClient){ setSync("공유 기능을 불러오지 못했어요. 인터넷을 확인해 주세요"); return; }
+    try {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      let { data } = await sb.auth.getSession();
+      let session = data && data.session;
+      if (!session){
+        const r = await sb.auth.signInAnonymously();
+        if (r.error) throw r.error;
+        session = r.data.session;
+      }
+      myId = session.user.id; online = true;
+      // 이 폰에만 있던 느낌과 투표를 서버로 옮기기 (처음 한 번)
+      if (!LS.get("dsc12_migrated", false)){
+        for (const k of Object.keys(myNotes)) if (PLACE_IDS.has(k) && myNotes[k]) await sb.from("notes").upsert({owner:myId, nick:nick, place:k, body:myNotes[k].slice(0,1000)}, {onConflict:"owner,place"});
+        if (nick) for (const k of Object.keys(myVotes)) if (OPT_IDS.has(k)) await sb.from("votes").upsert({owner:myId, nick:nick, option:k}, {onConflict:"owner,option"});
+        LS.set("dsc12_migrated", true);
+      }
+      await refreshRemote(); render();
+      setInterval(() => { if (!document.hidden) refreshRemote().then(softRender); }, 20000);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshRemote().then(softRender); });
+    } catch(e){
+      online = false; sb = null;
+      setSync("공유 서버에 연결하지 못했어요. 지금은 이 폰에만 저장돼요");
+    }
   }
 
   function fromHash(){
@@ -789,7 +941,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     renderNav(); render();
   }
   window.addEventListener("hashchange", () => { fromHash(); window.scrollTo({top:0}); });
-  renderNav(); render(); loadPhotos().then(() => { if (stage === "trip") render(); });
+  renderNav(); render(); loadPhotos().then(() => { if (stage === "trip") render(); }); initRemote();
 })();
 </script>
 </body>
