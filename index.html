@@ -219,6 +219,13 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 .price td:last-child{text-align:right;white-space:nowrap}
 .tablewrap{overflow-x:auto}
 .foot{color:var(--muted);font-size:14px;margin-top:28px}
+
+.role-board{margin:24px 0;padding:18px;border:2px dashed currentColor;border-radius:16px}
+.role-card{padding:14px 0;border-bottom:1px solid #ffffff40}.role-card:last-child{border:0}
+.role-card h4{margin:0 0 6px;font-size:19px}.role-card p{margin:8px 0;line-height:1.6}
+.role-card button,.role-board>button{margin:5px;padding:10px 14px;border-radius:10px;cursor:pointer}
+.role-card label{display:block;margin:10px 0}.role-card input{width:20px;height:20px;vertical-align:middle;margin-right:8px}
+.role-status{font-weight:bold}.role-board select{padding:10px;font-size:16px;max-width:100%}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -448,12 +455,79 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     foot.textContent = stage === "trip"
       ? "현지 일정은 순서와 시간이 바뀔 수 있어요. 관광지 안내 글은 여행 준비용 요약이라 실제와 조금 다를 수 있어요."
       : stage === "friends" ? "설레는 마음은 친구들 모두가 볼 수 있어요. 내가 쓴 글만 지울 수 있어요."
-      : "체크한 내용은 나만 볼 수 있어요.";
+      : "준비물 체크는 나만, 반장 신청·임무 준비 상태는 친구들과 함께 봐요.";
   }
 
   function render(){
     view.textContent = "";
     if (stage === "prep") renderPrep(); else if (stage === "friends") renderFriends(); else renderDay();
+  }
+
+
+  // Role applications use separate reserved notes keys; existing travel notes stay intact.
+  const ROLE_DEFS = [
+    {id:'economy',title:'경제반장',cap:1,mission:'위안화·달러 필요 금액 취합과 환전 준비 확인. 필요한 통화·가이드 경비는 여행사 확인 [확인 필요].',tasks:['위안화 준비 확인','달러 준비 확인']},
+    {id:'payment',title:'결제반장',cap:1,mission:'알리페이 대표 결제 1명. 공동 결제 내역을 기록하고 총무에게 전달.',tasks:['알리페이 설치·가입','결제수단 등록·사용 방법 확인']},
+    {id:'backup',title:'예비 결제요원',cap:2,mission:'예비 2명. 알리페이를 준비해 두고 대표 결제가 어려울 때 대신 결제. 다른 반장과 겸임 가능.',tasks:['알리페이 설치·가입','결제수단 등록·사용 방법 확인']},
+    {id:'passport',title:'여권반장',cap:1,mission:'친구 10명의 여권 준비 여부와 여행사 확인 완료 여부 챙기기. 여권 원본은 각자 보관.',tasks:['전원 여권 준비 확인','여행사 요구 조건 확인']},
+    {id:'entry',title:'입국·안전반장',cap:1,mission:'입국 절차 안내, 통신 준비·보험·비상연락 방법 확인.',tasks:['입국 절차 확인·안내','통신 준비 확인','보험·비상연락 방법 확인']}
+  ];
+  let roleRows = [], roleBusy = false, roleError = '';
+  function decodeRoleRows(rows){
+    return rows.flatMap(r=>{
+      const def=ROLE_DEFS.find(d=>r.place==='__dsc12_role_'+d.id);
+      if(!def) return [];
+      try{const b=JSON.parse(r.body);if(!b || !Array.isArray(b.done))return [];
+        return [{owner:r.owner,nick:String(r.nick||'친구').slice(0,20),role:def.id,done:def.tasks.map((_,i)=>b.done[i]===true)}];
+      }catch(e){return [];}
+    });
+  }
+  async function changeRole(def,done){
+    if(roleBusy)return;
+    if(!online){alert('공유 연결 후 신청해 줘. 지금은 친구들에게 전달할 수 없어.');return;}
+    if(!FRIENDS.includes(nick)){alert('먼저 아래에서 내 이름을 선택해 줘.');return;}
+    roleBusy=true;roleError='';render();
+    try{
+      // Refresh capacity before applying; concurrent applications remain visible for coordination.
+      const q=await sb.from('notes').select('owner,nick,place,body');if(q.error)throw q.error;
+      roleRows=decodeRoleRows(q.data||[]);
+      const own=roleRows.find(r=>r.role===def.id&&r.owner===myId);
+      if(done!==null && !own && roleRows.filter(r=>r.role===def.id).length>=def.cap)throw new Error('모집 인원이 찼어.');
+      if(done!==null && ((def.id==='payment'&&roleRows.some(r=>r.owner===myId&&r.role==='backup'))||(def.id==='backup'&&roleRows.some(r=>r.owner===myId&&r.role==='payment'))))throw new Error('대표와 예비 결제는 둘 중 하나만 맡아 줘.');
+      const place='__dsc12_role_'+def.id;
+      const result=done===null?await sb.from('notes').delete().eq('owner',myId).eq('place',place):await sb.from('notes').upsert({owner:myId,nick,place,body:JSON.stringify({done}),updated_at:new Date().toISOString()},{onConflict:'owner,place'});
+      if(result.error)throw result.error;
+      const reload=await sb.from('notes').select('owner,nick,place,body');if(reload.error)throw reload.error;
+      roleRows=decodeRoleRows(reload.data||[]);
+    }catch(e){roleError='저장하지 못했어. '+(e.message==='모집 인원이 찼어.'||String(e.message).includes('둘 중 하나')?e.message:'인터넷 연결 또는 공유 저장 권한을 확인해 줘. 신청은 완료되지 않았어.');}
+    finally{roleBusy=false;render();}
+  }
+  function renderRoles(parent){
+    const b=el('section','role-board');b.appendChild(el('h3',null,'🙋 우리 여행 반장 모집'));
+    b.appendChild(el('p',null,'회장 지남용 · 총무 이동환'));
+    b.appendChild(el('p',null,'회장은 전체 조율·인원 확인, 총무는 여행사 연락·예약·공동경비 정산을 맡아. 반장은 준비를 안내하고 완료 여부를 챙겨 줘.'));
+    const picker=el('select');picker.setAttribute('aria-label','임무 신청할 내 이름');picker.disabled=roleBusy;
+    const blank=el('option',null,'먼저 내 이름 선택');blank.value='';picker.appendChild(blank);
+    FRIENDS.forEach(n=>{const o=el('option',null,n);o.value=n;o.selected=n===nick;picker.appendChild(o);});
+    picker.onchange=async()=>{if(picker.value){await setNick(picker.value);render();}};b.appendChild(picker);
+    b.appendChild(el('p','role-status',online?'신청 현황은 친구들과 공유돼. 약 20초마다 갱신돼.':'공유 연결 대기 중 · 연결 후 신청할 수 있어.'));
+    if(roleError){const err=el('p','role-status',roleError);err.setAttribute('role','alert');b.appendChild(err);}
+    ROLE_DEFS.forEach(d=>{
+      const c=el('div','role-card'),rows=roleRows.filter(r=>r.role===d.id),own=rows.find(r=>r.owner===myId);
+      c.appendChild(el('h4',null,d.title+' · '+rows.length+'/'+d.cap+'명'));
+      c.appendChild(el('p',null,d.mission));
+      rows.forEach(r=>c.appendChild(el('p',null,r.nick+' · '+(r.done.every(Boolean)?'✓ 준비 완료':'준비 중 ('+r.done.filter(Boolean).length+'/'+d.tasks.length+')'))));
+      if(rows.length>d.cap || new Set(rows.map(r=>r.nick)).size<rows.length)c.appendChild(el('p','role-status','동시 신청 또는 중복 이름이 있어. 친구들과 조율한 뒤 본인이 신청을 취소해 줘.'));
+      if(own){
+        d.tasks.forEach((t,i)=>{const lab=el('label'),ch=el('input');ch.type='checkbox';ch.checked=own.done[i];ch.disabled=roleBusy||!online;ch.onchange=()=>{const done=own.done.slice();done[i]=ch.checked;changeRole(d,done);};lab.appendChild(ch);lab.appendChild(document.createTextNode(t));c.appendChild(lab);});
+        const cancel=el('button',null,'신청 취소');cancel.type='button';cancel.disabled=roleBusy||!online;cancel.onclick=()=>{if(confirm(d.title+' 신청을 취소할까?'))changeRole(d,null);};c.appendChild(cancel);
+      }else{const join=el('button',null,rows.length>=d.cap?'모집 완료':'🙋 내가 할게!');join.type='button';join.disabled=roleBusy||!online||rows.length>=d.cap;join.onclick=()=>changeRole(d,d.tasks.map(()=>false));c.appendChild(join);}
+      b.appendChild(c);
+    });
+    b.appendChild(el('p',null,'여권번호·카드번호는 쓰지 않아. 본인이 신청한 역할만 체크·취소할 수 있어. 같은 이름으로 여러 폰에서 신청하지 말아 줘.'));
+    const copy=el('button',null,'임무 분담 현황 복사');copy.type='button';copy.disabled=!online;const msg=el('div');
+    copy.onclick=()=>copyText(['동산초 12회 망산 여행 임무 분담','회장: 지남용','총무: 이동환',...ROLE_DEFS.map(d=>d.title+': '+(roleRows.filter(r=>r.role===d.id).map(r=>r.nick+(r.done.every(Boolean)?' (준비 완료)':' (준비 중)')).join(', ')||'모집 중'))].join('\n'),msg);
+    b.appendChild(copy);b.appendChild(msg);parent.appendChild(b);
   }
 
   /* ---------- prep ---------- */
@@ -465,6 +539,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     dd.appendChild(el("div","num", diff > 0 ? "D-" + diff : diff === 0 ? "D-day" : "출발!"));
     const dp = el("p"); dp.textContent = diff > 0 ? "12월 17일 0시 30분, 유스퀘어에서 출발해요." : "즐거운 여행 되세요. 위의 ‘여행’에서 일정을 보세요.";
     dd.appendChild(dp); s.appendChild(dd);
+    renderRoles(s);
 
     const all = allItems();
     const done = all.filter(i => checked[i[0]]).length;
@@ -1091,6 +1166,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
         key:r.id, owner:r.owner, nick:str(r.nick, 20) || "친구", body:str(r.body, 500), at:Date.parse(r.created_at) || 0, mine:r.owner === myId
       }));
       if (!n.error){
+        roleRows = decodeRoleRows(n.data || []);
         const next = {};
         (n.data || []).forEach(r => {
           if (!r || !PLACE_IDS.has(r.place)) return;
