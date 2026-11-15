@@ -470,7 +470,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 
     const box=el('div','identity-box');
     const label=el('label',null,'나는 ');label.htmlFor='shared-name';
-    const select=el('select');select.id='shared-name';select.disabled=identityBusy||roleBusy;
+    const select=el('select');select.id='shared-name';select.disabled=identityBusy||roleBusy||voteBusy;
     const blank=el('option',null,'이름을 선택해 줘');blank.value='';select.appendChild(blank);
     FRIENDS.forEach(n=>{const o=el('option',null,n);o.value=n;o.selected=n===nick;select.appendChild(o);});
     select.onchange=async()=>{
@@ -645,13 +645,34 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     yl.appendChild(ya); s.appendChild(yl);
     view.appendChild(s);
   }
-  function votersOf(opt){
-    if (online){
-      return remoteVotes.filter(v => v.option === opt).map(v => ({nick: v.nick || "이름 없음", me: v.owner === myId}));
-    }
-    return myVotes[opt] ? [{nick: nick || "나", me:true}] : [];
+  // Named selection snapshots supersede legacy per-device votes without deleting them.
+  let selectionRows = [], voteBusy = false;
+  function latestSelections(rows){
+    const latest = new Map();
+    (rows || []).forEach(r=>{
+      if(!r || typeof r.place!=='string' || !r.place.startsWith('__dsc12_selection_'))return;
+      try{
+        const body=JSON.parse(r.body);
+        if(!body || !FRIENDS.includes(body.name) || !Array.isArray(body.options) || !Number.isSafeInteger(body.revision) || body.revision<0)return;
+        const options=[...new Set(body.options.filter(id=>OPT_IDS.has(id)))];
+        const key=String(r.owner), prior=latest.get(body.name);
+        if(!prior || body.revision>prior.revision || (body.revision===prior.revision && key>prior.owner))latest.set(body.name,{owner:key,name:body.name,options,revision:body.revision});
+      }catch(e){}
+    });
+    return latest;
   }
-  function iVoted(opt){ return online ? remoteVotes.some(v => v.option === opt && v.owner === myId) : !!myVotes[opt]; }
+  function namedOptions(name){
+    const saved=latestSelections(selectionRows).get(name);
+    if(saved)return saved.options.slice(); // An empty list explicitly cancels all legacy votes.
+    return [...new Set(remoteVotes.filter(v=>(v.nick||'').trim().normalize('NFC')===name).map(v=>v.option))];
+  }
+  function votersOf(opt){
+    if(!online)return myVotes[opt]?[{nick:nick||'나',me:true}]:[];
+    const names=new Set(remoteVotes.map(v=>(v.nick||'').trim().normalize('NFC')).filter(Boolean));
+    latestSelections(selectionRows).forEach((_,name)=>names.add(name));
+    return Array.from(names).filter(name=>namedOptions(name).includes(opt)).map(name=>({nick:name,me:name===nick}));
+  }
+  function iVoted(opt){return online?namedOptions(nick).includes(opt):!!myVotes[opt];}
 
   function renderVotes(s){
     // 1) 선택관광 한눈에 보기 (이름과 상관없이 항상 보임)
@@ -673,6 +694,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     tw.appendChild(t); s.appendChild(tw);
     s.appendChild(el("p","status","투표한 친구 " + people.size + "명, 선택관광 신청 " + totalCnt + "건, 전체 금액 $" + totalUsd));
 
+    s.appendChild(el('p','status','같은 이름의 선택관광은 모든 기기에서 함께 써. 이곳에서 체크하거나 해제하면 전체 신청 현황에 반영돼. 여러 기기에서 동시에 바꿀 때는 마지막으로 저장된 선택 목록이 적용돼.'));
+
     // 2) 내 투표
     s.appendChild(el("h3",null,"내 선택관광 고르기"));
     if (!nick){
@@ -680,11 +703,12 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
       return;
     }
     const box = el("div","group");
+    const reload=el("button","btn ghost","↻ 선택 현황 새로고침");reload.type="button";reload.disabled=voteBusy||!online;reload.onclick=async()=>{reload.disabled=true;await refreshRemote();render();};box.appendChild(reload);
     const h = el("h4"); h.appendChild(document.createTextNode(nick + "의 선택")); h.appendChild(el("span",null,"하고 싶은 것 체크"));
     box.appendChild(h);
     OPTIONS.forEach(o => {
       const lb = el("label","check vote");
-      const cb = el("input"); cb.type = "checkbox"; cb.checked = iVoted(o.id);
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = iVoted(o.id); cb.disabled = voteBusy || !online;
       cb.addEventListener("change", async () => { cb.disabled = true; await setVote(o.id, cb.checked); render(); });
       const tx = el("div","tx");
       tx.appendChild(el("span",null, o.name + (o.price ? " $" + o.price : "")));
@@ -695,8 +719,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const mine = OPTIONS.filter(o => iVoted(o.id) && o.price).reduce((a,o) => a + o.price, 0);
     const r = el("div","row");
     r.appendChild(el("span",null,"내 선택관광 합계 $" + mine));
-    const rn = el("button","btn ghost","이름 바꾸기"); rn.type = "button";
-    rn.addEventListener("click", () => { location.hash = "#friends"; });
+    const rn = el("button","btn ghost","내 이름 확인"); rn.type = "button";
+    rn.addEventListener("click", () => { document.getElementById("shared-name").focus(); window.scrollTo({top:0,behavior:"smooth"}); });
     const cp = el("button","btn ghost","신청 현황 복사"); cp.type = "button";
     const cbx = el("div","copybox");
     cp.addEventListener("click", () => {
@@ -709,24 +733,33 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   }
 
   async function setVote(opt, on){
-    if (!OPT_IDS.has(opt)) return;
-    const others = on && opt === "none" ? OPTIONS.filter(o => o.id !== "none").map(o => o.id) : (on ? ["none"] : []);
-    if (!online){
-      if (on) myVotes[opt] = true; else delete myVotes[opt];
-      others.forEach(k => delete myVotes[k]);
-      LS.set("dsc12_votes", myVotes); return;
-    }
-    try {
-      if (on){
-        const r = await sb.from("votes").upsert({owner:myId, nick:nick, option:opt}, {onConflict:"owner,option"});
-        if (r.error) throw r.error;
-        if (others.length){ await sb.from("votes").delete().eq("owner", myId).in("option", others); }
-      } else {
-        const r = await sb.from("votes").delete().eq("owner", myId).eq("option", opt);
-        if (r.error) throw r.error;
-      }
-    } catch(e){ alert("투표를 저장하지 못했어요. 인터넷 연결을 확인해 주세요."); }
-    await refreshRemote();
+    if(!OPT_IDS.has(opt) || voteBusy)return;
+    if(!FRIENDS.includes(nick)){alert('맨 위 「나는」에서 내 이름을 선택해 줘.');return;}
+    if(!online){alert('선택관광은 공유 연결 후 변경해 줘. 지금은 친구들과 같은 상태로 저장할 수 없어.');return;}
+    const name=nick;
+    voteBusy=true;render();
+    try{
+      // Read fresh shared state so unrelated selections made on another device survive.
+      const [n,v]=await Promise.all([sb.from('notes').select('owner,nick,place,body'),sb.from('votes').select('owner,nick,option')]);
+      if(n.error||v.error)throw new Error('read');
+      selectionRows=n.data||[];
+      remoteVotes=(v.data||[]).filter(r=>r&&OPT_IDS.has(r.option));
+      let options=namedOptions(name);
+      if(on){
+        if(opt==='none')options=['none'];
+        else options=[...new Set(options.filter(x=>x!=='none').concat(opt))];
+      }else options=options.filter(x=>x!==opt);
+      // Logical revision advances even when device clocks differ.
+      const prior=latestSelections(selectionRows).get(name);
+      const revision=Math.max(Date.now(),prior?prior.revision+1:0);
+      const record={owner:myId,nick:name,place:'__dsc12_selection_'+FRIENDS.indexOf(name),body:JSON.stringify({name,options,revision}),updated_at:new Date().toISOString()};
+      const result=await sb.from('notes').upsert(record,{onConflict:'owner,place'});
+      if(result.error)throw result.error;
+      selectionRows=selectionRows.filter(r=>!(r.owner===record.owner&&r.place===record.place)).concat(record);
+      myVotes=Object.fromEntries(options.map(id=>[id,true]));LS.set('dsc12_votes',myVotes);
+      await refreshRemote();
+    }catch(e){alert('변경 내용을 공유 저장하지 못했어. 연결을 확인하고 다시 체크해 줘.');}
+    finally{voteBusy=false;render();}
   }
 
   async function setNick(v){
@@ -1164,6 +1197,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
         key:r.id, owner:r.owner, nick:str(r.nick, 20) || "친구", body:str(r.body, 500), at:Date.parse(r.created_at) || 0, mine:r.owner === myId
       }));
       if (!n.error){
+        selectionRows = n.data || [];
         roleRows = decodeRoleRows(n.data || []);
         const next = {};
         (n.data || []).forEach(r => {
