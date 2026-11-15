@@ -226,6 +226,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 .role-card button,.role-board>button{margin:5px;padding:10px 14px;border-radius:10px;cursor:pointer}
 .role-card label{display:block;margin:10px 0}.role-card input{width:20px;height:20px;vertical-align:middle;margin-right:8px}
 .role-status{font-weight:bold}.role-board select{padding:10px;font-size:16px;max-width:100%}
+.identity-box{margin:12px 0 22px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}.identity-box label{font-size:22px;font-weight:bold}.identity-box select{font:inherit;padding:10px;max-width:75%;border-radius:8px}.identity-box p{margin:10px 0 0}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
@@ -458,8 +459,34 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
       : "준비물 체크는 나만, 반장 신청·임무 준비 상태는 친구들과 함께 봐요.";
   }
 
+  let identityBusy = false;
+  function renderIdentity(parent){
+    const start = new Date(2026, 11, 17), today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((start - today) / 86400000);
+    const dd = el("div","dday");
+    dd.appendChild(el("div","num", diff > 0 ? "D-" + diff : diff === 0 ? "D-day" : "출발!"));
+    const dp = el("p"); dp.textContent = diff > 0 ? "12월 17일 0시 30분, 유스퀘어에서 출발해요." : "즐거운 여행 되세요. 위의 ‘여행’에서 일정을 보세요.";
+    dd.appendChild(dp); parent.appendChild(dd);
+
+    const box=el('div','identity-box');
+    const label=el('label',null,'나는 ');label.htmlFor='shared-name';
+    const select=el('select');select.id='shared-name';select.disabled=identityBusy||roleBusy;
+    const blank=el('option',null,'이름을 선택해 줘');blank.value='';select.appendChild(blank);
+    FRIENDS.forEach(n=>{const o=el('option',null,n);o.value=n;o.selected=n===nick;select.appendChild(o);});
+    select.onchange=async()=>{
+      if(!select.value||select.value===nick)return;
+      if(nick&&!confirm('이 기기의 이름을 '+select.value+'(으)로 바꿀까? 이 기기에서 작성한 글과 신청의 이름도 바뀌어.')){select.value=nick;return;}
+      identityBusy=true;select.disabled=true;
+      try{await setNick(select.value);}finally{identityBusy=false;render();}
+    };
+    box.appendChild(label);box.appendChild(select);
+    box.appendChild(el('p','status','준비 단계 · 함께 한 친구들 · 여행에서 이 이름을 함께 써. 기기마다 처음 한 번 선택해 줘.'));
+    parent.appendChild(box);
+  }
+
   function render(){
     view.textContent = "";
+    renderIdentity(view);
     if (stage === "prep") renderPrep(); else if (stage === "friends") renderFriends(); else renderDay();
   }
 
@@ -485,46 +512,50 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   async function changeRole(def,done){
     if(roleBusy)return;
     if(!online){alert('공유 연결 후 신청해 줘. 지금은 친구들에게 전달할 수 없어.');return;}
-    if(!FRIENDS.includes(nick)){alert('먼저 아래에서 내 이름을 선택해 줘.');return;}
+    if(!FRIENDS.includes(nick)){alert('맨 위 「나는」에서 내 이름을 선택해 줘.');return;}
     roleBusy=true;roleError='';render();
     try{
       // Refresh capacity before applying; concurrent applications remain visible for coordination.
       const q=await sb.from('notes').select('owner,nick,place,body');if(q.error)throw q.error;
       roleRows=decodeRoleRows(q.data||[]);
       const own=roleRows.find(r=>r.role===def.id&&r.owner===myId);
+      if(done!==null && !own && roleRows.some(r=>r.role===def.id&&r.nick===nick))throw new Error('같은 이름으로 이미 신청했어. 처음 신청한 기기에서 수정해 줘.');
       if(done!==null && !own && roleRows.filter(r=>r.role===def.id).length>=def.cap)throw new Error('모집 인원이 찼어.');
-      if(done!==null && ((def.id==='payment'&&roleRows.some(r=>r.owner===myId&&r.role==='backup'))||(def.id==='backup'&&roleRows.some(r=>r.owner===myId&&r.role==='payment'))))throw new Error('대표와 예비 결제는 둘 중 하나만 맡아 줘.');
+      if(done!==null && ((def.id==='payment'&&roleRows.some(r=>(r.owner===myId||r.nick===nick)&&r.role==='backup'))||(def.id==='backup'&&roleRows.some(r=>(r.owner===myId||r.nick===nick)&&r.role==='payment'))))throw new Error('대표와 예비 결제는 둘 중 하나만 맡아 줘.');
       const place='__dsc12_role_'+def.id;
       const result=done===null?await sb.from('notes').delete().eq('owner',myId).eq('place',place):await sb.from('notes').upsert({owner:myId,nick,place,body:JSON.stringify({done}),updated_at:new Date().toISOString()},{onConflict:'owner,place'});
       if(result.error)throw result.error;
       const reload=await sb.from('notes').select('owner,nick,place,body');if(reload.error)throw reload.error;
       roleRows=decodeRoleRows(reload.data||[]);
-    }catch(e){roleError='저장하지 못했어. '+(e.message==='모집 인원이 찼어.'||String(e.message).includes('둘 중 하나')?e.message:'인터넷 연결 또는 공유 저장 권한을 확인해 줘. 신청은 완료되지 않았어.');}
+    }catch(e){roleError='저장하지 못했어. '+(e.message==='모집 인원이 찼어.'||String(e.message).includes('둘 중 하나')||String(e.message).includes('같은 이름')?e.message:'인터넷 연결 또는 공유 저장 권한을 확인해 줘. 신청은 완료되지 않았어.');}
     finally{roleBusy=false;render();}
   }
   function renderRoles(parent){
     const b=el('section','role-board');b.appendChild(el('h3',null,'🙋 우리 여행 반장 모집'));
     b.appendChild(el('p',null,'회장 지남용 · 총무 이동환'));
     b.appendChild(el('p',null,'회장은 전체 조율·인원 확인, 총무는 여행사 연락·예약·공동경비 정산을 맡아. 반장은 준비를 안내하고 완료 여부를 챙겨 줘.'));
-    const picker=el('select');picker.setAttribute('aria-label','임무 신청할 내 이름');picker.disabled=roleBusy;
-    const blank=el('option',null,'먼저 내 이름 선택');blank.value='';picker.appendChild(blank);
-    FRIENDS.forEach(n=>{const o=el('option',null,n);o.value=n;o.selected=n===nick;picker.appendChild(o);});
-    picker.onchange=async()=>{if(picker.value){await setNick(picker.value);render();}};b.appendChild(picker);
     b.appendChild(el('p','role-status',online?'신청 현황은 친구들과 공유돼. 약 20초마다 갱신돼.':'공유 연결 대기 중 · 연결 후 신청할 수 있어.'));
     if(roleError){const err=el('p','role-status',roleError);err.setAttribute('role','alert');b.appendChild(err);}
     ROLE_DEFS.forEach(d=>{
       const c=el('div','role-card'),rows=roleRows.filter(r=>r.role===d.id),own=rows.find(r=>r.owner===myId);
       c.appendChild(el('h4',null,d.title+' · '+rows.length+'/'+d.cap+'명'));
       c.appendChild(el('p',null,d.mission));
-      rows.forEach(r=>c.appendChild(el('p',null,r.nick+' · '+(r.done.every(Boolean)?'✓ 준비 완료':'준비 중 ('+r.done.filter(Boolean).length+'/'+d.tasks.length+')'))));
+      rows.forEach(r=>{
+        c.appendChild(el('p',null,r.nick+' · '+(r.done.every(Boolean)?'✓ 준비 완료':'준비 중 ('+r.done.filter(Boolean).length+'/'+d.tasks.length+')')));
+        if(r.owner!==myId){
+          d.tasks.forEach((t,i)=>{const lab=el('label'),ch=el('input');ch.type='checkbox';ch.checked=r.done[i];ch.disabled=true;lab.appendChild(ch);lab.appendChild(document.createTextNode(t));c.appendChild(lab);});
+          if(r.nick===nick)c.appendChild(el('p','status','다른 기기에서 신청한 역할이야. 상태는 함께 보지만 수정·취소는 처음 신청한 기기에서 해 줘.'));
+        }
+      });
       if(rows.length>d.cap || new Set(rows.map(r=>r.nick)).size<rows.length)c.appendChild(el('p','role-status','동시 신청 또는 중복 이름이 있어. 친구들과 조율한 뒤 본인이 신청을 취소해 줘.'));
       if(own){
         d.tasks.forEach((t,i)=>{const lab=el('label'),ch=el('input');ch.type='checkbox';ch.checked=own.done[i];ch.disabled=roleBusy||!online;ch.onchange=()=>{const done=own.done.slice();done[i]=ch.checked;changeRole(d,done);};lab.appendChild(ch);lab.appendChild(document.createTextNode(t));c.appendChild(lab);});
         const cancel=el('button',null,'신청 취소');cancel.type='button';cancel.disabled=roleBusy||!online;cancel.onclick=()=>{if(confirm(d.title+' 신청을 취소할까?'))changeRole(d,null);};c.appendChild(cancel);
-      }else{const join=el('button',null,rows.length>=d.cap?'모집 완료':'🙋 내가 할게!');join.type='button';join.disabled=roleBusy||!online||rows.length>=d.cap;join.onclick=()=>changeRole(d,d.tasks.map(()=>false));c.appendChild(join);}
+      }else{const join=el('button',null,rows.length>=d.cap?'모집 완료':'🙋 내가 할게!');join.type='button';join.disabled=roleBusy||!online||rows.length>=d.cap||rows.some(r=>r.nick===nick);join.onclick=()=>changeRole(d,d.tasks.map(()=>false));c.appendChild(join);}
       b.appendChild(c);
     });
     b.appendChild(el('p',null,'여권번호·카드번호는 쓰지 않아. 본인이 신청한 역할만 체크·취소할 수 있어. 같은 이름으로 여러 폰에서 신청하지 말아 줘.'));
+    const refresh=el('button',null,'↻ 현황 새로고침');refresh.type='button';refresh.disabled=!online||roleBusy;refresh.onclick=async()=>{refresh.disabled=true;await refreshRemote();render();};b.appendChild(refresh);
     const copy=el('button',null,'임무 분담 현황 복사');copy.type='button';copy.disabled=!online;const msg=el('div');
     copy.onclick=()=>copyText(['동산초 12회 망산 여행 임무 분담','회장: 지남용','총무: 이동환',...ROLE_DEFS.map(d=>d.title+': '+(roleRows.filter(r=>r.role===d.id).map(r=>r.nick+(r.done.every(Boolean)?' (준비 완료)':' (준비 중)')).join(', ')||'모집 중'))].join('\n'),msg);
     b.appendChild(copy);b.appendChild(msg);parent.appendChild(b);
@@ -533,12 +564,6 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   /* ---------- prep ---------- */
   function renderPrep(){
     const s = el("section","prep");
-    const start = new Date(2026, 11, 17), today = new Date(); today.setHours(0,0,0,0);
-    const diff = Math.round((start - today) / 86400000);
-    const dd = el("div","dday");
-    dd.appendChild(el("div","num", diff > 0 ? "D-" + diff : diff === 0 ? "D-day" : "출발!"));
-    const dp = el("p"); dp.textContent = diff > 0 ? "12월 17일 0시 30분, 유스퀘어에서 출발해요." : "즐거운 여행 되세요. 위의 ‘여행’에서 일정을 보세요.";
-    dd.appendChild(dp); s.appendChild(dd);
     renderRoles(s);
 
     const all = allItems();
@@ -651,14 +676,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     // 2) 내 투표
     s.appendChild(el("h3",null,"내 선택관광 고르기"));
     if (!nick){
-      s.appendChild(el("p","status","먼저 내 이름을 눌러 주세요."));
-      const chips = el("div","namechips");
-      FRIENDS.forEach(n => {
-        const b = el("button","chip", n); b.type = "button";
-        b.addEventListener("click", async () => { await setNick(n); render(); });
-        chips.appendChild(b);
-      });
-      s.appendChild(chips);
+      s.appendChild(el('p','status','맨 위 「나는」에서 내 이름을 선택해 줘.'));
       return;
     }
     const box = el("div","group");
@@ -764,21 +782,6 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     head.appendChild(el("span","date", String(FRIENDS.length)));
     const h = el("div"); h.appendChild(el("h2",null,"함께 한 친구들")); h.appendChild(el("small",null,"동산초 12회, 설레는 마음을 남겨요"));
     head.appendChild(h); s.appendChild(head);
-
-    // 나는 누구?
-    const who = el("div","paper");
-    who.appendChild(el("h3",null, nick && FRIENDS.includes(nick) ? "나는 " + nick + "!" : "나는 누구예요? 내 이름을 눌러 주세요"));
-    const chips = el("div","chips");
-    FRIENDS.forEach(n => {
-      const b = el("button","chip", n); b.type = "button"; b.setAttribute("aria-pressed", nick === n ? "true" : "false");
-      b.addEventListener("click", async () => {
-        if (nick === n) return;
-        if (nick && !confirm("내 이름을 " + n + "(으)로 바꿀까요?")) return;
-        await setNick(n); render();
-      });
-      chips.appendChild(b);
-    });
-    who.appendChild(chips); s.appendChild(who);
 
     // 친구 카드
     const all = heartsAll();
@@ -1024,14 +1027,14 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const up = el("div","up");
     {
       const nl = el("label",null,"찍은 사람"); nl.htmlFor = "by-" + it.id;
-      const ni = el("input"); ni.type = "text"; ni.id = "by-" + it.id; ni.maxLength = 20; ni.value = nick || ""; ni.placeholder = "예: 김영주"; ni.setAttribute("list","friendNames");
+      const ni = el("input"); ni.type = "text"; ni.id = "by-" + it.id; ni.maxLength = 20; ni.value = nick || ""; ni.readOnly = true; ni.placeholder = "맨 위에서 내 이름 선택";
       const fl = el("label",null,"사진 고르기 (여러 장 가능)"); fl.htmlFor = "f-" + it.id; fl.style.marginTop = "8px";
       const fi = el("input"); fi.type = "file"; fi.id = "f-" + it.id; fi.accept = "image/*"; fi.multiple = true;
       const r = el("div","row"); const ub = el("button","btn","사진 올리기"); ub.type = "button";
       const st = el("span","status"); st.setAttribute("aria-live","polite");
       ub.addEventListener("click", async () => {
-        const by = ni.value.trim();
-        if (!by){ st.textContent = "찍은 사람 이름을 적어 주세요"; ni.focus(); return; }
+        const by = nick;
+        if (!by){ st.textContent = "맨 위 「나는」에서 내 이름을 선택해 줘"; ni.focus(); return; }
         const files = Array.from(fi.files || []);
         if (!files.length){ st.textContent = "사진을 먼저 골라 주세요"; fi.focus(); return; }
         ub.disabled = true;
@@ -1093,11 +1096,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const friends = list.filter(n => !n.me);
     if (!friends.length) panel.appendChild(el("p","empty", online ? "아직 친구들 느낌이 없어요. 먼저 남겨 보세요." : "공유 설정 전이라 느낌이 이 폰에만 저장돼요."));
     friends.forEach(n => { const d = el("div","note"); d.appendChild(el("div","who",n.who)); d.appendChild(el("p",null,n.text)); panel.appendChild(d); });
-    if (!nick){
-      const lb = el("label",null,"내 이름"); lb.htmlFor = "nick-" + it.id;
-      const ni = el("input"); ni.type = "text"; ni.id = "nick-" + it.id; ni.maxLength = 20; ni.placeholder = "예: 김영주"; ni.setAttribute("list","friendNames");
-      panel.appendChild(lb); panel.appendChild(ni);
-    }
+    if (!nick) panel.appendChild(el('p','status','맨 위 「나는」에서 내 이름을 선택해 줘.'));
     const lt = el("label",null, it.name + "에서 내 느낌"); lt.htmlFor = "t-" + it.id; lt.style.marginTop = "8px";
     const ta = el("textarea"); ta.id = "t-" + it.id; ta.maxLength = 1000; ta.value = myNotes[it.id] || "";
     ta.placeholder = "보고 느낀 것, 맛있었던 것, 기억하고 싶은 장면";
@@ -1105,8 +1104,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
     const r = el("div","row"); const sbtn = el("button","btn","저장"); sbtn.type = "button";
     const st = el("span","status", online ? "저장하면 모두가 볼 수 있어요" : "이 폰에 저장돼요"); st.setAttribute("aria-live","polite");
     sbtn.addEventListener("click", async () => {
-      const nIn = document.getElementById("nick-" + it.id);
-      if (nIn){ const v = nIn.value.trim(); if (!v){ st.textContent = "이름을 먼저 적어 주세요"; nIn.focus(); return; } await setNick(v); }
+      if(!nick){st.textContent='맨 위 「나는」에서 내 이름을 선택해 줘.';document.getElementById('shared-name').focus();return;}
       myNotes[it.id] = ta.value.trim(); if (!myNotes[it.id]) delete myNotes[it.id];
       LS.set("dsc12_notes", myNotes);
       sbtn.disabled = true; st.textContent = "저장 중";
@@ -1181,7 +1179,8 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
         key:r.id, owner:r.owner, by:str(r.by_name, 20) || "친구", place:r.place, path:r.path,
         url: sb.storage.from("photos").getPublicUrl(r.path).data.publicUrl, at: Date.parse(r.created_at) || 0, mine: r.owner === myId
       }));
-      setSync("모두에게 공유 중");
+      if(n.error||v.error||p.error||h.error)setSync("일부 공유 정보를 불러오지 못했어요. 새로고침해 주세요");
+      else setSync("모두에게 공유 중");
     } catch(e){ setSync("인터넷 연결을 확인해 주세요"); }
   }
 
