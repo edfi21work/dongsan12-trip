@@ -220,7 +220,12 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
 .tablewrap{overflow-x:auto}
 .foot{color:var(--muted);font-size:14px;margin-top:28px}
 
-.role-board{margin:24px 0;padding:18px;border:2px dashed currentColor;border-radius:16px}
+.role-board{margin:24px 0;padding:20px;background:#243e50;color:#fff8e7;border:2px dashed #dfc77e;border-radius:16px;box-shadow:0 6px 18px #00000024}
+.role-board>h3{color:#ffe29a}
+.role-board .role-leaders{font-family:"Gowun Dodum",sans-serif;font-size:clamp(22px,5vw,27px);font-weight:900;line-height:1.65;color:#ffe29a;margin:14px 0 18px;word-break:keep-all}
+.role-leaders span{display:inline-block}
+.role-board .status{color:#e1eaf0}
+.role-board .role-card{border-bottom-color:#d6e3ec55}
 .role-card{padding:14px 0;border-bottom:1px solid #ffffff40}.role-card:last-child{border:0}
 .role-card h4{margin:0 0 6px;font-size:19px}.role-card p{margin:8px 0;line-height:1.6}
 .role-card button,.role-board>button{margin:5px;padding:10px 14px;border-radius:10px;cursor:pointer}
@@ -532,7 +537,7 @@ section.prep h3{font-family:"Nanum Pen Script","Gowun Dodum",cursive;font-weight
   }
   function renderRoles(parent){
     const b=el('section','role-board');b.appendChild(el('h3',null,'🙋 우리 여행 반장 모집'));
-    b.appendChild(el('p',null,'회장 지남용 · 총무 이동환'));
+    const leaders=el('p','role-leaders');leaders.appendChild(el('span',null,'회장 지남용'));leaders.appendChild(document.createTextNode(' · '));leaders.appendChild(el('span',null,'총무 이동환'));b.appendChild(leaders);
     b.appendChild(el('p',null,'회장은 전체 조율·인원 확인, 총무는 여행사 연락·예약·공동경비 정산을 맡아. 반장은 준비를 안내하고 완료 여부를 챙겨 줘.'));
     b.appendChild(el('p','role-status',online?'신청 현황은 친구들과 공유돼. 약 20초마다 갱신돼.':'공유 연결 대기 중 · 연결 후 신청할 수 있어.'));
     if(roleError){const err=el('p','role-status',roleError);err.setAttribute('role','alert');b.appendChild(err);}
